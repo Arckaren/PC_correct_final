@@ -1,0 +1,21 @@
+Pour l'envoi de messages entre les clients et le serveur : 
+1. Clients demandent à se connecter.
+2. Serveur répond.
+3. Connection.
+4. Serveur envoit la phrase :
+    4.1. Envoit la taille du mot.
+    4.2. Envoit le mot.
+    4.3. Répète les étapes 4.1 et 4.2 tant que la phrase n'est pas finie
+5. Les clients recoivent les mots et reconstituent la phrase.
+6. Sur les mots "disparus" demander l'accès au mot pour le modifier (SEMAPHORES).
+7. Le client doit ensuite envoyer deux messages : 
+    7.1. Indice du mot modifié.
+    7.2. Taille du mot choisi.
+    7.2. Le mot choisi pour le remplacer.
+8. Le serveur notifie tous les clients de la phrase modifiée en faisant :
+    8.1. Envoit de l'indice du mot modifié.
+    8.2. Envoit de la taille du nouveau mot.
+    8.3. Envoit du mot modifié.
+9. Les client mettent chacun à jour leur phrase avec le nouveau mot reçu.
+10. Si le jeu est terminé (AKA phrase complétée) il envoit un message de fin à tout le monde.
+
