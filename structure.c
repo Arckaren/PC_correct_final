@@ -29,6 +29,11 @@ void send_mot(mot* m, int socket_dsc) {
   
   // 2. sending the chars(the word)
   send(socket_dsc, m->m, m->size, 0);
+
+  // 3. sending the boolean (visibility)
+  char buf2[INT_STR_SIZE]; // size max of int converted in chars
+  snprintf(buf2, INT_STR_SIZE, "%d", m->disparu);
+  send(socket_dsc, buf2, sizeof(buf), 0);
 }
 
 void receive_mot(mot* m, int socket_dsc) {
@@ -41,6 +46,11 @@ void receive_mot(mot* m, int socket_dsc) {
     if (recv(socket_dsc, m->m, m->size, 0)==1){
         //erreur
     }
+    char buf2[INT_STR_SIZE];
+    if (recv(socket_dsc, buf2, sizeof(buf2), 0)==1){
+        //erreur
+    }
+    m->disparu = atoi(buf2);
 }
  
 void make_phraseM(phraseM* ph, int nb_mot, char const** words){

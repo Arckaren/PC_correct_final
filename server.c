@@ -2,6 +2,7 @@
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <pthread.h>
 #include <semaphore.h>
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -13,10 +14,16 @@
 #include "structure.h"
 
 
+void *envoi(void* e){
+    memoire *mem = (memoire*)e;
+    printf("Envoi des donnees au client\n");
+    send_phraseM(&mem->p, mem->id);
+}
 
-/*void *envoi(void* e){
+void *reception(void* r){
+    memoire *mem = (memoire*)r;
+}
 
-}*/
 int nbWord(char *str){
     int state = 0;  
     unsigned nb_mot = 0; 
@@ -34,6 +41,21 @@ int nbWord(char *str){
     return nb_mot;  
 }
 void initialisation(phraseM *p){
+
+    /*
+    char* tab_phrase[10];
+    char phrase1[] = "Les mendiantes remunerees a hauteur de cinquante-sept euros par jour prenaient racine dans les quartiers résidentiels de Seoul";
+    char phrase2[] = "l'oie niche haut l'oie niche bas mais ou niche l'hibou l'hibou niche ni haut ni bas";
+    char phrase3[] = "Quelles sont les prix les plus bas pour les articles vendus cette semaine pendant la black week";
+    char phrase4[] = "Le COBOL est un vieux langage qui à été crée par une femme nomée Grace Hopper";
+    char phrase5[] = "Les chaussettes de l'archie duchesse sont t'elles sèches archi sèches";
+    char phrase6[] = "Cinq dilettantes blâment des fiscalistes en armures de combat";
+    char phrase7[] = "";
+    char phrase8[] = "";
+    char phrase9[] = "";
+    char phrase10[] = "";
+    
+    */
     
     char phrase[] = "Les mendiantes remunerees a hauteur de cinquante-sept euros par jour prenaient racine dans les quartiers résidentiels de Seoul";
     char delim[] = " ";
@@ -89,7 +111,7 @@ void initialisation(phraseM *p){
     //met a jour le statut des mots de la liste en mots enleves
 
     for(int i = 0; i <nbMotEnleve; i++){
-        p->listeMots[idMotEnleve[i]].disparu = 1;
+        set_visible(idMotEnleve[i], p, true);
     }
 
 }
@@ -104,7 +126,7 @@ int main(int argc, char* argv[]){
     }
 
     key_t key;
-    if((key=ftok("file.txt",0))==-1){
+    if((key=ftok("file.txt",1))==-1){
         printf("Creation de cle impossible");
         exit(EXIT_FAILURE);
     }
@@ -148,39 +170,63 @@ int main(int argc, char* argv[]){
         exit(EXIT_FAILURE);
     }
 
+    //Initialisation de la phrase
+    phraseM phr;
+    printf("Initialisation de la phrase du jeu\n");
+    initialisation(&phr);
+    
+    mem->p = phr;
+
+
     //ecoute
     if(listen(ds, 7)==-1){
         printf("Impossible de connecter");
         exit(EXIT_FAILURE);
     }
+    int nbClient = 1;
+    do{
+        struct sockaddr_in client;
+        socklen_t lg = sizeof(struct sockaddr_in);
+        int dsc = accept(ds, (struct sockaddr*)&client, &lg);
+        mem->id = nbClient;
+        nbClient++;
+        printf("%d",mem->id);
+        if(dsc == -1){
+            printf("Client impossible à connecter");
+            exit(EXIT_FAILURE);
+        }
 
-    struct sockaddr_in client1, client2;
+        printf("client %d : \n", mem->id);
 
-    socklen_t lg = sizeof(struct sockaddr_in);
-    int dsc = accept(ds, (struct sockaddr*)&client1, &lg);
+        if(fork()){
+            pthread_t thread_envoi, thread_recep;
+            if(pthread_create(&thread_envoi, NULL, envoi, mem)==-1){
+                printf("Erreur creation pthread envoi");
+                exit(EXIT_FAILURE);
+            }
 
-    if(dsc == -1){
-        printf("Client impossible à connecter");
-        exit(EXIT_FAILURE);
-    }
+            if(pthread_create(&thread_recep, NULL, reception, mem)==-1){
+                printf("Erreur creation pthread reception");
+                exit(EXIT_FAILURE);
+            }
 
-    //while(1){
-        printf("client 1 : %d\n", dsc);
+            if(pthread_join(thread_envoi, NULL)==-1){
+                printf("Erreur attente fin du thread envoi ");
+                exit(EXIT_FAILURE);
+            }
 
-        phraseM phr;
-        initialisation(&phr);
-
-        /*char const* tab[] = {"nane", "truc", "bidule"};
-        make_phraseM(&phr, 3, tab);*/
+            if(pthread_join(thread_recep, NULL)==-1){
+                printf("Erreur attente fin du thread reception ");
+                exit(EXIT_FAILURE);
+            }
+        }
         
-        send_phraseM(&phr, dsc);
+        close(dsc);
+    }while(1);
 
-
-        destroy_phraseM(&phr);
-    //}
-    close(dsc);
+    //Fin de l'execution, destruction
+    destroy_phraseM(&phr);
     close(ds);
-
 
     return 0;
 }

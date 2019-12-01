@@ -27,9 +27,8 @@ bool get_visible(int indice ,  phraseM* ph_trouee);
 
 void set_visible(int  indice , phraseM* ph_trouee, bool non_visibility);
 
-// char const* tab[] = {"nane", "truc", "bidule"};
-// make_phraseM(&ph, 5, tab);
 void make_phraseM(phraseM* ph, int nb_mot, char const** words);
 typedef struct memoire{
+    int id;
     phraseM p;
 } memoire;
