@@ -48,8 +48,17 @@ void *actualisation(void* donnees){
     printf("Bienvenue client %d, debut du jeu\n", mem->idClient);
     printf("%s\n", affichage(mem->p));
     printf("%s\n", motAPlacer(mem->p));
-    int i = 0;
-   
+    int i=0;
+    while(1){
+        i = receiveIdMot(mem->idSock);
+        if(i!=0){
+            bool change = receiveMotBool(mem->idSock);
+            mem->p.listeMots[i].disparu = change;
+            printf("%s\n", affichage(mem->p));
+            printf("%s\n", motAPlacer(mem->p));
+        }
+        i = 0;
+    }
 }
 
 void *envoi(void* donnees){
@@ -65,6 +74,8 @@ void *envoi(void* donnees){
     fgets(motEcrit, BUFSIZ, stdin);
     motEcrit[strlen(motEcrit)-1]='\0';
     send(mem->idSock, motEcrit, sizeof(motEcrit),0);
+
+    
 }
 
 int main(int argc, char* argv[]){

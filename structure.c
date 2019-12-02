@@ -106,6 +106,32 @@ int receiveIdClient(int socket_dsc){
   return atoi(buf);
 }
 
+void sendIdMot(int i, int socket_dsc, bool change){
+  char buf[INT_STR_SIZE]; // size max of int converted in chars
+  snprintf(buf, INT_STR_SIZE, "%d", i);
+  // 1. sending the word size (w/o \0)
+  send(socket_dsc, buf, sizeof(buf), 0);
+  char buf2[INT_STR_SIZE]; // size max of int converted in chars
+  snprintf(buf2, INT_STR_SIZE, "%d", change);
+  // 1. sending the word size (w/o \0)
+  send(socket_dsc, buf2, sizeof(buf2), 0);
+}
+
+int receiveIdMot(int socket_dsc){
+  char buf[INT_STR_SIZE];
+  if (recv(socket_dsc, buf, sizeof(buf), 0)==-1){
+      //erreur
+  }
+  return atoi(buf);
+}
+bool receiveMotBool(int socket_dsc){
+  char buf[INT_STR_SIZE];
+  if (recv(socket_dsc, buf, sizeof(buf), 0)==-1){
+      //erreur
+  }
+  return atoi(buf);
+}
+
 
 void set_visible(int  indice , phraseM* ph_trouee, bool non_visibility){
   if(non_visibility == true){
