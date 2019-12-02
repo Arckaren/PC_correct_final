@@ -20,9 +20,7 @@ void *envoi(void* e){
 
     sendIdClient(d->mem->idClient, d->mem->idSock);
     send_phraseM(&d->mem->p, d->mem->idSock);
-    //while(1){
-
-    //}
+    pthread_exit(NULL);
 }
 
 void *reception(void* r){
@@ -42,6 +40,7 @@ void *reception(void* r){
         }
         printf("Le client %d a saisi les info : %d, %s\n",d->mem->idClient,idMot , word);
     //}
+    pthread_exit(NULL);
 }
 
 int nbWord(char *str){
@@ -181,8 +180,6 @@ int main(int argc, char* argv[]){
 
     struct sockaddr_in ad;
     //test
-
-    socklen_t lgA = sizeof(struct sockaddr_in);
 
     ad.sin_family = AF_INET;
     ad.sin_addr.s_addr = INADDR_ANY;

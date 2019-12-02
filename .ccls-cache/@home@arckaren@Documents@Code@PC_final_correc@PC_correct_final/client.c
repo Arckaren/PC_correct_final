@@ -28,6 +28,10 @@ char *motAPlacer(phraseM p){
     char *temp= malloc(p.taille*sizeof(mot));
     for(int i = 0; i < p.taille; i++){
         if(p.listeMots[i].disparu == 1){
+            char buf[10];
+            snprintf(buf, 10, "%d", i);
+            strcat(temp, buf);
+            strcat(temp, " : ");
             strcat(temp, p.listeMots[i].m);
             if(i != p.taille-1)
                 strcat(temp, ", ");
@@ -38,16 +42,40 @@ char *motAPlacer(phraseM p){
 
 void *actualisation(void* donnees){
     memoire *mem = (memoire*)donnees;
-    receive_phraseM(&mem->p, mem->id);
-
+    mem->idClient = receiveIdClient(mem->idSock);
+    receive_phraseM(&mem->p, mem->idSock);
+ 
+    printf("Bienvenue client %d, debut du jeu\n", mem->idClient);
     printf("%s\n", affichage(mem->p));
     printf("%s\n", motAPlacer(mem->p));
+    int i=0;
     while(1){
-
+        i = receiveIdMot(mem->idSock);
+        if(i!=0){
+            bool change = receiveMotBool(mem->idSock);
+            mem->p.listeMots[i].disparu = change;
+            printf("%s\n", affichage(mem->p));
+            printf("%s\n", motAPlacer(mem->p));
+        }
+        i = 0;
     }
+    pthread_exit(NULL);
 }
-void *envoi(void* donnees){
 
+void *envoi(void* donnees){
+    memoire *mem = (memoire*)donnees;
+    char motEcrit[BUFSIZ];
+    char indiceEcrit[BUFSIZ];
+
+    printf("Ecrire l'indice du mot : ");
+    fgets(indiceEcrit, BUFSIZ, stdin);
+    send(mem->idSock, indiceEcrit, sizeof(indiceEcrit),0);
+
+    printf("Ecrire le mot : ");
+    fgets(motEcrit, BUFSIZ, stdin);
+    motEcrit[strlen(motEcrit)-1]='\0';
+    send(mem->idSock, motEcrit, sizeof(motEcrit),0);
+    pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]){
@@ -77,18 +105,27 @@ int main(int argc, char* argv[]){
     
     memoire mem;
 
-    pthread_t envoi, recep;
+    pthread_t env, recep;
 
-    if(pthread_create(&envoi, NULL, actualisation, &mem)==-1){
+    mem.idSock = dS;
+
+    if(pthread_create(&recep, NULL, actualisation, &mem)==-1){
         printf("Erreur creation thread actualisation");
         exit(EXIT_FAILURE);
     }
-
-    if(pthread_join(envoi, NULL)==-1){
-        printf("Erreur attente de fin du thread");
+    if(pthread_create(&env, NULL, envoi, &mem)==-1){
+        printf("Erreur creation thread envoi");
         exit(EXIT_FAILURE);
     }
 
+    if(pthread_join(recep, NULL)==-1){
+        printf("Erreur attente de fin du thread");
+        exit(EXIT_FAILURE);
+    }
+    if(pthread_join(env, NULL)==-1){
+        printf("Erreur attente de fin du thread");
+        exit(EXIT_FAILURE);
+    }
 
     destroy_phraseM(&mem.p);
     close(dS);

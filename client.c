@@ -59,6 +59,7 @@ void *actualisation(void* donnees){
         }
         i = 0;
     }
+    pthread_exit(NULL);
 }
 
 void *envoi(void* donnees){
@@ -74,8 +75,7 @@ void *envoi(void* donnees){
     fgets(motEcrit, BUFSIZ, stdin);
     motEcrit[strlen(motEcrit)-1]='\0';
     send(mem->idSock, motEcrit, sizeof(motEcrit),0);
-
-    
+    pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]){

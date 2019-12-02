@@ -15,13 +15,32 @@
 
 
 void *envoi(void* e){
-    memoire *mem = (memoire*)e;
+    data *d = (data*)e;
     printf("Envoi des donnees au client\n");
-    send_phraseM(&mem->p, mem->id);
+
+    sendIdClient(d->mem->idClient, d->mem->idSock);
+    send_phraseM(&d->mem->p, d->mem->idSock);
+    pthread_exit(NULL);
 }
 
 void *reception(void* r){
-    memoire *mem = (memoire*)r;
+    data *d = (data*)r;
+
+    //while(1){
+        char id[BUFSIZ];
+        char word[BUFSIZ];
+        if (recv(d->mem->idSock, id, sizeof(id), 0)==-1){
+        //erreur
+        }
+
+        int idMot = atoi(id);
+
+        if (recv(d->mem->idSock, word, sizeof(word), 0)==-1){
+        //erreur
+        }
+        printf("Le client %d a saisi les info : %d, %s\n",d->mem->idClient,idMot , word);
+    //}
+    pthread_exit(NULL);
 }
 
 int nbWord(char *str){
@@ -41,21 +60,25 @@ int nbWord(char *str){
     return nb_mot;  
 }
 void initialisation(phraseM *p){
+  srand (time (NULL));
 
-    /*
-    char* tab_phrase[10];
-    char phrase1[] = "Les mendiantes remunerees a hauteur de cinquante-sept euros par jour prenaient racine dans les quartiers résidentiels de Seoul";
+    /*char phrase1[] = "Les mendiantes remunerees a hauteur de cinquante-sept euros par jour prenaient racine dans les quartiers résidentiels de Seoul";
     char phrase2[] = "l'oie niche haut l'oie niche bas mais ou niche l'hibou l'hibou niche ni haut ni bas";
     char phrase3[] = "Quelles sont les prix les plus bas pour les articles vendus cette semaine pendant la black week";
     char phrase4[] = "Le COBOL est un vieux langage qui à été crée par une femme nomée Grace Hopper";
     char phrase5[] = "Les chaussettes de l'archie duchesse sont t'elles sèches archi sèches";
     char phrase6[] = "Cinq dilettantes blâment des fiscalistes en armures de combat";
-    char phrase7[] = "";
-    char phrase8[] = "";
-    char phrase9[] = "";
-    char phrase10[] = "";
+    char phrase7[] = "Keny Arcana mendiera des draps en satin aux sociopathes à Kyoto";
+    char phrase8[] = "Les sidérurgistes contribuent à proposer deux armes aux monstres";
+    char phrase9[] = "Les martyrs ne se débarrassent jamais d'omelettes aux champignons";
+    char phrase10[] = "Est-ce que le penseur grossissait";
+    char* tab_phrase={&phrase1,&phrase2,&phrase3,&phrase4,&phrase5,&phrase6,&phrase7,&phrase8,&phrase9,&phrase10};
+
+    int pointeur_phrase= rand() % 10 ;
     
-    */
+    char phrase[] =*(tab_phrase[pointeur_phrase]);
+    char delim[] = " ";*/
+   
     
     char phrase[] = "Les mendiantes remunerees a hauteur de cinquante-sept euros par jour prenaient racine dans les quartiers résidentiels de Seoul";
     char delim[] = " ";
@@ -126,11 +149,12 @@ int main(int argc, char* argv[]){
     }
 
     key_t key;
-    if((key=ftok("file.txt",1))==-1){
+    if((key=ftok("file.txt",2))==-1){
         printf("Creation de cle impossible");
         exit(EXIT_FAILURE);
     }
 
+    data d;
     memoire *mem;
 
     int memoire_partage;
@@ -157,8 +181,6 @@ int main(int argc, char* argv[]){
     struct sockaddr_in ad;
     //test
 
-    socklen_t lgA = sizeof(struct sockaddr_in);
-
     ad.sin_family = AF_INET;
     ad.sin_addr.s_addr = INADDR_ANY;
     ad.sin_port = htons(atoi(argv[1]));
@@ -177,35 +199,41 @@ int main(int argc, char* argv[]){
     
     mem->p = phr;
 
+    mem->mutexMot = (pthread_mutex_t*)malloc((mem->p.taille/3) * sizeof(pthread_mutex_t));
+    for(int k = 0; k < mem->p.taille/3; k++){
+        pthread_mutex_init(&mem->mutexMot[k], NULL);
+    }
 
     //ecoute
     if(listen(ds, 7)==-1){
         printf("Impossible de connecter");
         exit(EXIT_FAILURE);
     }
+
     int nbClient = 1;
+
     do{
         struct sockaddr_in client;
         socklen_t lg = sizeof(struct sockaddr_in);
         int dsc = accept(ds, (struct sockaddr*)&client, &lg);
-        mem->id = nbClient;
-        nbClient++;
-        printf("%d",mem->id);
         if(dsc == -1){
             printf("Client impossible à connecter");
             exit(EXIT_FAILURE);
         }
 
-        printf("client %d : \n", mem->id);
-
         if(fork()){
+            printf("client %d : \n", mem->idClient);
+            mem->idClient = nbClient;
+            nbClient++;
+            mem->idSock = dsc;
+            d.mem = mem;
             pthread_t thread_envoi, thread_recep;
-            if(pthread_create(&thread_envoi, NULL, envoi, mem)==-1){
+            if(pthread_create(&thread_envoi, NULL, envoi, &d)==-1){
                 printf("Erreur creation pthread envoi");
                 exit(EXIT_FAILURE);
             }
 
-            if(pthread_create(&thread_recep, NULL, reception, mem)==-1){
+            if(pthread_create(&thread_recep, NULL, reception, &d)==-1){
                 printf("Erreur creation pthread reception");
                 exit(EXIT_FAILURE);
             }
