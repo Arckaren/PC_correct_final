@@ -91,6 +91,22 @@ void destroy_phraseM(phraseM* ph){
   free(ph->listeMots);
 }
 
+void sendIdClient(int id, int socket_dsc){
+  char buf[INT_STR_SIZE]; // size max of int converted in chars
+  snprintf(buf, INT_STR_SIZE, "%d", id);
+  // 1. sending the word size (w/o \0)
+  send(socket_dsc, buf, sizeof(buf), 0);
+}
+
+int receiveIdClient(int socket_dsc){
+  char buf[INT_STR_SIZE];
+  if (recv(socket_dsc, buf, sizeof(buf), 0)==-1){
+      //erreur
+  }
+  return atoi(buf);
+}
+
+
 void set_visible(int  indice , phraseM* ph_trouee, bool non_visibility){
   if(non_visibility == true){
     ph_trouee->listeMots[indice].disparu = true;

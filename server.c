@@ -17,11 +17,28 @@
 void *envoi(void* e){
     memoire *mem = (memoire*)e;
     printf("Envoi des donnees au client\n");
-    send_phraseM(&mem->p, mem->id);
+    /*char buf[20]; // size max of int converted in chars
+    snprintf(buf, 20, "%d", mem->idClient);
+    // 1. sending the word size (w/o \0)
+    if(send(mem->idSock, buf, sizeof(buf), 0)==-1){
+        printf("Envoi de l'id client impossible");
+        exit(EXIT_FAILURE);
+    }*/
+    sendIdClient(mem->idClient, mem->idSock);
+    send_phraseM(&mem->p, mem->idSock);
 }
 
 void *reception(void* r){
     memoire *mem = (memoire*)r;
+    char id[BUFSIZ];
+    char word[BUFSIZ];
+    if (recv(mem->idSock, id, sizeof(id), 0)==-1){
+      //erreur
+    }
+    if (recv(mem->idSock, word, sizeof(word), 0)==-1){
+      //erreur
+    }
+    printf("Le client a saisi les info : %d, %s\n", atoi(id), word);
 }
 
 int nbWord(char *str){
@@ -188,15 +205,16 @@ int main(int argc, char* argv[]){
         struct sockaddr_in client;
         socklen_t lg = sizeof(struct sockaddr_in);
         int dsc = accept(ds, (struct sockaddr*)&client, &lg);
-        mem->id = nbClient;
-        nbClient++;
-        printf("%d",mem->id);
         if(dsc == -1){
             printf("Client impossible à connecter");
             exit(EXIT_FAILURE);
         }
 
-        printf("client %d : \n", mem->id);
+        mem->idClient = nbClient;
+        nbClient++;
+        mem->idSock = dsc;
+
+        printf("client %d : \n", mem->idClient);
 
         if(fork()){
             pthread_t thread_envoi, thread_recep;

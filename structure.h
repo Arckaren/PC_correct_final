@@ -28,7 +28,13 @@ bool get_visible(int indice ,  phraseM* ph_trouee);
 void set_visible(int  indice , phraseM* ph_trouee, bool non_visibility);
 
 void make_phraseM(phraseM* ph, int nb_mot, char const** words);
+
+void sendIdClient(int id, int socket_dsc);
+
+int receiveIdClient(int socket_dsc);
+
 typedef struct memoire{
-    int id;
+    int idClient;
+    int idSock;
     phraseM p;
 } memoire;
