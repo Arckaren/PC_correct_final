@@ -11,5 +11,7 @@ server: server.c
 
 clean:
 	rm -rf *.o
+
+mrproper: clean
 	rm -rf client
 	rm -rf server
