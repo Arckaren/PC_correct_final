@@ -44,7 +44,6 @@ void *actualisation(void* donnees){
     memoire *mem = (memoire*)donnees;
     mem->idClient = receiveIdClient(mem->idSock);
     receive_phraseM(&mem->p, mem->idSock);
-
  
     printf("Bienvenue client %d, debut du jeu\n", mem->idClient);
     printf("%s\n", affichage(mem->p));
