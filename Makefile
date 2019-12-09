@@ -1,4 +1,4 @@
-CFLAGS+=-Wall -Wextra -lpthread
+CFLAGS+=-Wall -Wextra -lpthread -g 
 
 all: client server 
 

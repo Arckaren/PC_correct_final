@@ -17,7 +17,7 @@ typedef struct phraseM{
 int nbWord(char *str){
     int state = 0;  
     unsigned nb_mot = 0; 
-    while (*str)  
+    while (*str) 
     {  
         if (*str == ' ' || *str == '\n' || *str == '\t')  
             state = 0;  

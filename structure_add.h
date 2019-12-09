@@ -1,3 +1,89 @@
+#include <stdio.h>
+#include <stdbool.h>
+#include <pthread.h>
+
+typedef struct mot{
+    char* m;
+    bool disparu;
+    int size;
+} mot;
+
+typedef struct phraseM{
+    int taille;
+    mot* listeMots;
+}phraseM;
+
+// make_mot(&m, "chaine de caractere");
+void make_mot(mot* m, char const* str);
+
+void destroy_mot(mot* m);
+
+void send_mot(mot* m, int socket_dsc);
+
+void receive_mot(mot* m, int socket_dsc);
+
+void receive_phraseM(phraseM* ph, int socket_dsc);
+
+void send_phraseM(phraseM* ph, int socket_dsc);
+
+void destroy_phraseM(phraseM* ph);
+
+bool get_visible(int indice ,  phraseM* ph_trouee);
+
+void set_visible(int  indice , phraseM* ph_trouee, bool non_visibility);
+
+void make_phraseM(phraseM* ph, int nb_mot, char const** words);
+
+void sendIdClient(int id, int socket_dsc);
+
+int receiveIdClient(int socket_dsc);
+
+void sendIdMot(int i, int socket_dsc, bool change);
+
+int receiveIdMot(int socket_dsc);
+
+bool receiveMotBool(int socket_dsc);
+
+typedef struct protector{
+    pthread_mutex_t mutexMot;
+    int idMot;
+}protector;
+
+typedef struct memoire{
+    phraseM p;
+    protector *tabMutex;
+    int nbMotEnleve;
+} memoire;
+
+
+typedef struct data{
+    memoire *mem;
+    int id;
+    bool change;
+    int idClient;
+    int idSock;
+}data;
+
+
+
+
+
+
+
+
+
+//******************************************************************************************************************************************
+
+
+
+
+
+
+
+
+
+
+
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/sem.h>
@@ -13,6 +99,7 @@
 #include <time.h>
 #include "structure.h"
 
+
 int returnIdTabMutex(int i, protector* tab, int taille){
     for(int k =0 ; k < taille; k++){
         if(tab[k].idMot == i)
@@ -20,55 +107,38 @@ int returnIdTabMutex(int i, protector* tab, int taille){
     }
     return -1;
 }
-bool bonMot(char *motEntre, char *motTableau){
-    if (strcmp(motEntre, motTableau) != 0){
-        return false;
-    }
-    else {
-        return true;
-    }
-}
 
-void *envoiClient(void* e){
+void *envoi(void* e){
     data *d = (data*)e;
     printf("Envoi des donnees au client\n");
 
-    envoi(d->idSock, &d->idClient, sizeof(d->idClient));
+    
     send_phraseM(&d->mem->p, d->idSock);
-    while(1){
-        if(d->mem->change){
-            bool c = true;
-            envoi(d->idSock, &c, sizeof(c));
-            envoi(d->idSock, &d->mem->id, sizeof(d->mem->id));
-            d->mem->change = false;
-        }
-    }
     pthread_exit(NULL);
 }
 
 void *reception(void* r){
     data *d = (data*)r;
-
+    printf("%ld", (long)d->mem);
     while(1){
-        int32_t id;
+        char id[BUFSIZ];
         char word[BUFSIZ];
-        recevoir(d->idSock, &id, sizeof(id));
-        printf("id recu : %d", id);
-        int index = returnIdTabMutex(id, d->mem->tabMutex, d->mem->nbMotEnleve);
+        if (recv(d->idSock, id, sizeof(id), 0)==-1){
+        //erreur
+        }
+
+        int idMot = atoi(id);
+        int index = returnIdTabMutex(idMot, d->mem->tabMutex, d->mem->nbMotEnleve);
         if(index == -1){
             printf("Index inexistant");
         }
         printf("index : %d", index);
         pthread_mutex_lock(&d->mem->tabMutex[index].mutexMot);
-        recevoir(d->idSock, &word, sizeof(word));
-        if(bonMot(word, d->mem->p.listeMots[id].m)){
-            d->mem->p.listeMots[d->mem->id].disparu = false;
-            d->mem->id = id;
-            d->mem->change = true;
+        if (recv(d->idSock, word, sizeof(word), 0)==-1){
+        //erreur
         }
-        printf("\n Le client %d a saisi les info : %d, %s\n",d->idClient, id, word);
-
         pthread_mutex_unlock(&d->mem->tabMutex[index].mutexMot);
+        printf("Le client %d a saisi les info : %d, %s\n",d->idClient,idMot , word);
     }
     pthread_exit(NULL);
 }
@@ -114,6 +184,9 @@ void initialisation(phraseM *p){
     char delim[] = " ";
 
     int nbMot = nbWord(phrase);
+
+    /*p.taille = nbMot;
+    p.listeMots =malloc(nbMot*sizeof(mot));*/
 
     char *ptr = strtok(phrase, delim);
     const char *tab[nbMot];
@@ -168,13 +241,14 @@ void initialisation(phraseM *p){
 
 int main(int argc, char* argv[]){
 
+    //commande à garder : elle va servir maggle
+        // getsockname()
     if(argc != 2){
         printf("Nombre d'argument pas bon");
         exit(EXIT_FAILURE);
     }
 
     key_t key;
-
     if((key=ftok("file.txt",0))==-1){
         printf("Creation de cle impossible");
         exit(EXIT_FAILURE);
@@ -196,11 +270,6 @@ int main(int argc, char* argv[]){
         exit(EXIT_FAILURE);
     }
 
-    int semaphores = semget(key,7,IPC_CREAT|0666);
-    if( semaphores == -1){
-        perror(" echec de creation de la memoire partagee");
-        exit(EXIT_FAILURE);
-    }
 
     //creation socket
     int ds = socket(PF_INET, SOCK_STREAM,0);
@@ -230,7 +299,9 @@ int main(int argc, char* argv[]){
     
     mem->p = phr;
     mem->nbMotEnleve = (mem->p.taille)/3;
-    mem->tabMutex = (protector*)malloc((mem->p.taille/3) * sizeof(protector));
+    mem->tabMutex = (protector*)malloc((mem->p.taille)/3 * sizeof(protector));
+   
+
     for(int k = 0; k < mem->p.taille/3; k++){
         pthread_mutex_init(&mem->tabMutex[k].mutexMot, NULL);
     }
@@ -241,7 +312,6 @@ int main(int argc, char* argv[]){
             t++;
         }
     }
-    d.mem->change = false;
 
     //ecoute
     if(listen(ds, 7)==-1){
@@ -251,7 +321,6 @@ int main(int argc, char* argv[]){
 
     int nbClient = 1;
 
-    d.mem = mem;
     do{
         struct sockaddr_in client;
         socklen_t lg = sizeof(struct sockaddr_in);
@@ -261,15 +330,17 @@ int main(int argc, char* argv[]){
             exit(EXIT_FAILURE);
         }
         d.idClient = nbClient;
-
         nbClient++;
         d.idSock = dsc;
+        d.mem = mem;
+
         if(fork()){
-            printf("client %d : , socket : %d\n", d.idClient, dsc);
-
+            close(ds);
+            printf("client %d : \n", d.idClient);
+            sendIdClient(d.idClient, d.idSock);
             pthread_t thread_envoi, thread_recep;
-
-            if(pthread_create(&thread_envoi, NULL, envoiClient, &d)==-1){
+            
+            if(pthread_create(&thread_envoi, NULL, envoi, &d)==-1){
                 printf("Erreur creation pthread envoi");
                 exit(EXIT_FAILURE);
             }
@@ -288,6 +359,7 @@ int main(int argc, char* argv[]){
                 printf("Erreur attente fin du thread reception ");
                 exit(EXIT_FAILURE);
             }
+            close(dsc);
         }
         
         close(dsc);
@@ -296,8 +368,6 @@ int main(int argc, char* argv[]){
     //Fin de l'execution, destruction
     destroy_phraseM(&phr);
     close(ds);
-    for(int i=0 ;i<7;i++){
-        semctl(semaphores,i,IPC_RMID);
-    }
+
     return 0;
 }

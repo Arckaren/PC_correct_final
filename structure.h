@@ -7,23 +7,29 @@ typedef struct mot{
     bool disparu;
     int size;
 } mot;
-
 typedef struct phraseM{
     int taille;
     mot* listeMots;
 }phraseM;
 
+typedef struct protector{
+    pthread_mutex_t mutexMot;
+    int idMot;
+}protector;
+
 typedef struct memoire{
-    int idClient;
-    int idSock;
     phraseM p;
-    pthread_mutex_t *mutexMot;
+    protector *tabMutex;
+    int nbMotEnleve;
+    int id;
+    bool change;
 } memoire;
+
 
 typedef struct data{
     memoire *mem;
-    int id;
-    bool change;
+    int idClient;
+    int idSock;
 }data;
 
 
@@ -36,12 +42,10 @@ void send_mot(mot* m, int socket_dsc);
 
 void receive_mot(mot* m, int socket_dsc);
 
+void recevoir(int socket_dsc, void const* buf, ssize_t size);
 
-void sendIdMot(int i, int socket_dsc, bool change);
+void envoi(int socket_dsc, void const* buf, ssize_t size);
 
-int receiveIdMot(int socket_dsc);
-
-bool receiveMotBool(int socket_dsc);
 
 //Methodes phrases
 void make_phraseM(phraseM* ph, int nb_mot, char const** words);
@@ -56,11 +60,6 @@ bool get_visible(int indice ,  phraseM* ph_trouee);
 
 void set_visible(int  indice , phraseM* ph_trouee, bool non_visibility);
 
-
-//Client
-void sendIdClient(int id, int socket_dsc);
-
-int receiveIdClient(int socket_dsc);
 
 
 

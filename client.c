@@ -11,6 +11,10 @@
 #include <unistd.h>
 #include "structure.h"
 
+pthread_mutex_t printout = PTHREAD_MUTEX_INITIALIZER;
+
+
+
 char *affichage(phraseM p){
     char *temp= malloc(p.taille*sizeof(mot));
    
@@ -39,43 +43,65 @@ char *motAPlacer(phraseM p){
     }
     return temp;
 }
+void affichageDebutGame(data *d){
+    
+    recevoir(d->idSock, &(d->idClient), sizeof(d->idClient));
+    receive_phraseM(&d->mem->p, d->idSock);
+
+    int k;
+    printf("\n      =================================================");
+    for(k=0;k<2;k++){
+        printf("\n    |                                                   |");
+    }
+    printf("\n    |       Bienvenue client %d, debut du jeu            |", d->idClient);
+    for(k=0;k<2;k++){
+        printf("\n    |                                                   |");
+    }
+    printf("\n      =================================================\n\n");
+    printf(" |     %s\n\n", affichage(d->mem->p));
+    printf(" |          %s\n\n", motAPlacer(d->mem->p));
+}
 
 void *actualisation(void* donnees){
-    memoire *mem = (memoire*)donnees;
-    mem->idClient = receiveIdClient(mem->idSock);
-    receive_phraseM(&mem->p, mem->idSock);
-
- 
-    printf("Bienvenue client %d, debut du jeu\n", mem->idClient);
-    printf("%s\n", affichage(mem->p));
-    printf("%s\n", motAPlacer(mem->p));
-    int i=0;
+    data *d = (data*)donnees;
+    int i = -1;
+    bool change = false;
     while(1){
-        i = receiveIdMot(mem->idSock);
-        if(i!=0){
-            bool change = receiveMotBool(mem->idSock);
-            mem->p.listeMots[i].disparu = change;
-            printf("%s\n", affichage(mem->p));
-            printf("%s\n", motAPlacer(mem->p));
+        while(!change){
+            recevoir(d->idSock, &change, sizeof(change));
         }
-        i = 0;
+        recevoir(d->idSock, &i, sizeof(i));
+        printf("i : %d\n", i);
+        d->mem->p.listeMots[i].disparu = false;
+       
+        printf("%s\n", affichage(d->mem->p));
+        printf("%s\n", motAPlacer(d->mem->p));
+
+        change = false;
     }
     pthread_exit(NULL);
 }
 
-void *envoi(void* donnees){
-    memoire *mem = (memoire*)donnees;
+void *envoiServeur(void* donnees){
+    data *d = (data*)donnees;
     char motEcrit[BUFSIZ];
-    char indiceEcrit[BUFSIZ];
+    int32_t indiceEcrit;
+    while(1){
+        pthread_mutex_lock(&printout);
+        printf("Ecrire l'indice du mot : ");
+        fflush(stdout);
+        scanf("%d ", &indiceEcrit);
 
-    printf("Ecrire l'indice du mot : ");
-    fgets(indiceEcrit, BUFSIZ, stdin);
-    send(mem->idSock, indiceEcrit, sizeof(indiceEcrit),0);
+        envoi(d->idSock, &indiceEcrit, sizeof(indiceEcrit));
 
-    printf("Ecrire le mot : ");
-    fgets(motEcrit, BUFSIZ, stdin);
-    motEcrit[strlen(motEcrit)-1]='\0';
-    send(mem->idSock, motEcrit, sizeof(motEcrit),0);
+        printf("Ecrire le mot : ");
+        fflush(stdout);
+        fgets(motEcrit, BUFSIZ, stdin);
+        motEcrit[strlen(motEcrit)-1] = '\0';
+        envoi(d->idSock, &motEcrit, sizeof(motEcrit));
+
+        pthread_mutex_unlock(&printout);
+    }
     pthread_exit(NULL);
 }
 
@@ -103,18 +129,21 @@ int main(int argc, char* argv[]){
         printf("Connexion impossible à la socket");
         exit(EXIT_FAILURE);
     }
-    
-    memoire mem;
+    data d;
+    memoire *mem;
+    mem = (memoire*)malloc(sizeof(memoire));
 
     pthread_t env, recep;
+    d.mem = mem;
+    d.idSock = dS;
 
-    mem.idSock = dS;
+    affichageDebutGame(&d);
 
-    if(pthread_create(&recep, NULL, actualisation, &mem)==-1){
+    if(pthread_create(&recep, NULL, actualisation, &d)==-1){
         printf("Erreur creation thread actualisation");
         exit(EXIT_FAILURE);
     }
-    if(pthread_create(&env, NULL, envoi, &mem)==-1){
+    if(pthread_create(&env, NULL, envoiServeur, &d)==-1){
         printf("Erreur creation thread envoi");
         exit(EXIT_FAILURE);
     }
@@ -128,6 +157,6 @@ int main(int argc, char* argv[]){
         exit(EXIT_FAILURE);
     }
 
-    destroy_phraseM(&mem.p);
+    destroy_phraseM(&d.mem->p);
     close(dS);
 }
